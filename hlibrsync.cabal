@@ -15,7 +15,13 @@ category:            Network
 build-type:          Simple
 cabal-version:       >=1.8
 
+Hs-source-dirs: src
+
 library
   -- exposed-modules:
   -- other-modules:
   build-depends:       base ==4.5.*
+
+  Build-tools: c2hs
+
+  Hs-source-dirs: src
