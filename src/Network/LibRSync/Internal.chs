@@ -18,10 +18,8 @@ import Foreign.C.Types
 --------------------------------------------------------------------------------
 -- | The CTypes
 
-type CRSLong = CLLong
-
 -- data Target = Target { t :: CUShort , i :: CInt }
---               deriving (Show, Eq)
+-- deriving (Show, Eq)
 
 -- {#pointer *rs_target as TargetPtr -> Target #}
 
@@ -29,44 +27,67 @@ type CRSLong = CLLong
 -- {#pointer *rs_block_sig_t as BlockSigPtr -> BlockSig #}
 
 
+type CSignature = Ptr CFile
+
+
 -- | The Signature type
-data CSignature -- = CSignature { flength :: CRSLong
-               --               , count   :: CInt
-               --               , remainder :: CInt
-               --               , blockLenth :: CInt
-               --               , strongSumLenght :: CInt
-               --               , blockSigs :: BlockSigPtr
-               --               , targets   :: TargetPtr
-               --               }
-               -- deriving (Eq, Show)
-
 {#pointer *rs_signature_t as SignaturePtr -> CSignature #}
-
--- | The Stats type
-data Stats
-{#pointer *rs_stats as StatsPtr -> Stats #}
 
 -- | The results type
 {#enum rs_result as Result {underscoreToCase} deriving (Eq, Show)#}
 
-
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
--- crsSignature   :: Handle -> IO (Maybe CSignature, Result)
--- crsSignature h = undefined
 
-type CFilePtr = Ptr CFile
+-- We first implement a function to generate the signature which is easy to
+-- call
+#c
+rs_result genSig(char* filePath, int fd) {
+    FILE* f, sigFile;
+    rs_stats_t stats;
+    rs_result  result;
 
--- | Loading signatures
--- the c-function is:
--- rs_result rs_loadsig_file(FILE *, rs_signature_t **, rs_stats_t *);
-{#fun unsafe rs_loadsig_file as cRSLoadSigFile
-      { id      `CFilePtr'
-      , alloca- `SignaturePtr' peek*
-      , alloca- `StatsPtr'
+    f       = rs_file_open(filePath, "rb");
+    sigFile = fdopen(fd, "w");
+
+    result = rs_sig_file(f, sigFile, &stats);
+    rs_file_close(f);
+
+    return result;
+}
+#endc
+
+-- cSignature      :: FilePath -> IO (Either String CSignature)
+-- cSignature p = cGenSig p >>= \r -> return $ case r of
+--                                               RsDone -> Right $ getSig ps
+--                                               _      -> Left "some error"
+--                    where
+--                      getSig :: SignaturePtr -> CSignature
+--                      getSig = undefined
+
+
+
+cGenSig :: FilePath -> Handle -> IO (Handle, Result)
+cGenSig p h = handleToFd h >>= cGenSig' p >>= \r -> return (h,r)
+
+{#fun unsafe genSig as cGenSig'
+      { `String'
+      , fromIntegral `Fd'
       } -> `Result' cIntToEnum
  #}
+
+
+
+-- -- | Loading signatures
+-- -- the c-function is:
+-- -- rs_result rs_loadsig_file(FILE *, rs_signature_t **, rs_stats_t *);
+-- {#fun unsafe rs_loadsig_file as cRSLoadSigFile
+--       { id      `Ptr CFile'
+--       , alloca- `SignaturePtr' peek*
+--       , alloca- `StatsPtr'
+--       } -> `Result' cIntToEnum
+--  #}
 
 
 --------------------------------------------------------------------------------
@@ -74,3 +95,10 @@ type CFilePtr = Ptr CFile
 
 cIntToEnum :: Enum a => CInt -> a
 cIntToEnum = toEnum . fromIntegral
+
+
+test = do
+  h <- openBinaryFile "/tmp/signature" WriteMode
+  (h',r) <- cGenSig "/Users/frank/tmp/httpd-error.log" h
+  print r
+  hClose h'
