@@ -1,6 +1,8 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Network.LibRSync.Internal where
 
+import Data.ByteString
+
 import System.IO
 import GHC.IO.Handle
 import System.Posix.IO
@@ -27,11 +29,11 @@ import Foreign.C.Types
 -- {#pointer *rs_block_sig_t as BlockSigPtr -> BlockSig #}
 
 
-type CSignature = Ptr CFile
+-- type CSignature = Ptr CFile
 
 
--- | The Signature type
-{#pointer *rs_signature_t as SignaturePtr -> CSignature #}
+-- -- | The Signature type
+-- {#pointer *rs_signature_t as SignaturePtr -> CSignature #}
 
 -- | The results type
 {#enum rs_result as Result {underscoreToCase} deriving (Eq, Show)#}
@@ -39,6 +41,28 @@ type CSignature = Ptr CFile
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
+type Signature = ByteString
+
+signature   :: FilePath -> IO (Either String Signature)
+signature p = undefined
+
+
+
+-- | Given a file, and a handle h, opened in binary Read-Write mode, indicating
+-- where to write the signature to. Generate the signature. The signature is
+-- written to the file corresponding to handle h. The handle is moved to the
+-- beginning of the file. The function returns a Maybe String, indicating if
+-- something goes wrong. If the result is Nothing, the operation succeeded.
+hSignature     :: FilePath -> Handle -> IO (Maybe String)
+hSignature p h = copyHandleToFd h >>= cGenSig p >>= \r -> case r of
+                    RsDone -> hSeek h AbsoluteSeek 0 >> return Nothing
+                    _      -> return $ Just "some error"
+
+{#fun unsafe genSig as cGenSig
+      { `String'
+      , fromIntegral `Fd'
+      } -> `Result' cIntToEnum
+ #}
 
 -- We first implement a function to generate the signature which is easy to
 -- call
@@ -60,26 +84,6 @@ rs_result genSig(char* filePath, int fd) {
 }
 #endc
 
--- cSignature      :: FilePath -> IO (Either String CSignature)
--- cSignature p = cGenSig p >>= \r -> return $ case r of
---                                               RsDone -> Right $ getSig ps
---                                               _      -> Left "some error"
---                    where
---                      getSig :: SignaturePtr -> CSignature
---                      getSig = undefined
-
-
-
-cGenSig :: FilePath -> Handle -> IO (Handle, Result)
-cGenSig p h = handleToFd h >>= cGenSig' p >>= \r -> return (h,r)
-
-{#fun unsafe genSig as cGenSig'
-      { `String'
-      , fromIntegral `Fd'
-      } -> `Result' cIntToEnum
- #}
-
-
 
 -- -- | Loading signatures
 -- -- the c-function is:
@@ -93,6 +97,19 @@ cGenSig p h = handleToFd h >>= cGenSig' p >>= \r -> return (h,r)
 
 --------------------------------------------------------------------------------
 -- | Delta
+
+
+cGenDelta :: Handle -> FilePath -> Handle -> IO (Handle, Result)
+cGenDelta sigHandle p deltaHandle = undefined
+
+
+{#fun unsafe genDelta as genDelta'
+      { fromIntegral `Fd'
+      , `String'
+      , fromIntegral `Fd'
+      } -> `Result' cIntToEnum
+
+ #}
 
 #c
 // generate a delta, based on the implementation of rdiff
@@ -119,16 +136,21 @@ rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
 
     // rs_file_close(deltaFile);
     rs_file_close(f);
-    // rs_file_close(sigFile);
+    rs_file_close(sigFile);
 
     return result;
 }
 #endc
 
-
-
 --------------------------------------------------------------------------------
 -- | Patch
+
+{#fun unsafe applyPatch as applyPatch'
+      { fromIntegral `Fd'
+      , `String'
+      , `String'
+      } -> `Result' cIntToEnum
+ #}
 
 
 #c
@@ -157,9 +179,10 @@ rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath) {
 cIntToEnum :: Enum a => CInt -> a
 cIntToEnum = toEnum . fromIntegral
 
+copyHandleToFd h = hDuplicate h >>= handleToFd
 
 test = do
-  h <- openBinaryFile "/tmp/signature" WriteMode
-  (h',r) <- cGenSig "/Users/frank/tmp/httpd-error.log" h
+  h <- openBinaryFile "/tmp/signature" ReadWriteMode
+  r <- hSignature "/Users/frank/tmp/httpd-error.log" h
   print r
-  hClose h'
+  hClose h
