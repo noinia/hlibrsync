@@ -68,14 +68,16 @@ hSignature p h = copyHandleToFd h >>= cGenSig p >>= \r -> case r of
 -- call
 #c
 rs_result genSig(char* filePath, int fd) {
-    FILE* f, sigFile;
+    FILE*      f;
+    FILE*      sigFile;
     rs_stats_t stats;
     rs_result  result;
 
-    f       = rs_file_open(filePath, "rb");
+    f       = fopen(filePath, "rb");
     sigFile = fdopen(fd, "wb");
 
-    result = rs_sig_file(f, sigFile, &stats);
+    result = rs_sig_file(f, sigFile,
+                         RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN, &stats);
     rs_file_close(f);
 
     // Note that we leave the sigfile open
@@ -84,22 +86,16 @@ rs_result genSig(char* filePath, int fd) {
 }
 #endc
 
-
--- -- | Loading signatures
--- -- the c-function is:
--- -- rs_result rs_loadsig_file(FILE *, rs_signature_t **, rs_stats_t *);
--- {#fun unsafe rs_loadsig_file as cRSLoadSigFile
---       { id      `Ptr CFile'
---       , alloca- `SignaturePtr' peek*
---       , alloca- `StatsPtr'
---       } -> `Result' cIntToEnum
---  #}
-
 --------------------------------------------------------------------------------
 -- | Delta
 
-
-cGenDelta :: Handle -> FilePath -> Handle -> IO (Handle, Result)
+-- | Given a handle refering to the sginature, in (at least) binary Read mode,
+-- positioned at the beginning of the file, a file path to a file, and a handle
+-- in binary read write mode. Compute the delta, and write the result to the
+-- file indicated by the second handle. The handle is repositioned to the
+-- beginning of the file. The result of this function is a Maybe String
+-- indicating any error messages. Nothing means the operation succeeded.
+cGenDelta :: Handle -> FilePath -> Handle -> IO (Maybe String)
 cGenDelta sigHandle p deltaHandle = undefined
 
 
@@ -114,13 +110,15 @@ cGenDelta sigHandle p deltaHandle = undefined
 #c
 // generate a delta, based on the implementation of rdiff
 rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
-    FILE*           sigFile, f, deltaFile;
+    FILE*           sigFile;
+    FILE*           f;
+    FILE*           deltaFile;
     rs_result       result;
     rs_signature_t* sumset;
     rs_stats_t      stats;
 
     sigFile   = fdopen(sigFd, "rb");
-    f         = rs_open_file(filePath, "rb");
+    f         = fopen(filePath, "rb");
     deltaFile = fdopen(deltaFd, "wb");
 
     result = rs_loadsig_file(sigFile, &sumset, &stats);
@@ -155,13 +153,15 @@ rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
 
 #c
 rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath) {
-    FILE*      deltaFile, inputFile, outputFile;
+    FILE*      deltaFile;
+    FILE*      inputFile;
+    FILE*      outputFile;
     rs_stats_t stats;
     rs_result  result;
 
-    inputFile  = rs_file_open(inputPath, "rb");
+    inputFile  = fopen(inputPath, "rb");
     deltaFile  = fdopen(deltaFd, "rb");
-    outputFile = rs_file_open(outputPath, "wb");
+    outputFile = fopen(outputPath, "wb");
 
     result = rs_patch_file(inputFile, deltaFile, outputFile, &stats);
 
