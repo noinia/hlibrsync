@@ -4,3 +4,6 @@
 *.DS_Store
 src/Network/LibRSync/Internal.hs
 src/Network/LibRSync/Internal.chs.h
+dist/*
+*.hi
+*.o
