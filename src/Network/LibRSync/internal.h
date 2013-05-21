@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "librsync.h"
+#include <librsync.h>
 
 rs_result genSig(char* filePath, int fd);
 

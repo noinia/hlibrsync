@@ -1,5 +1,5 @@
 #include "internal.h"
-#include "librsync.h"
+#include <librsync.h>
 #include <stdio.h>
 
 rs_result genSig(char* filePath, int fd) {
@@ -13,7 +13,7 @@ rs_result genSig(char* filePath, int fd) {
 
     result = rs_sig_file(f, sigFile,
                          RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN, &stats);
-    rs_file_close(f);
+    fclose(f);
 
     // Note that we leave the sigfile open
 
@@ -45,9 +45,9 @@ rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
 
     rs_free_sumset(sumset);
 
-    // rs_file_close(deltaFile);
-    rs_file_close(f);
-    rs_file_close(sigFile);
+    // fclose(deltaFile);
+    fclose(f);
+    fclose(sigFile);
 
     return result;
 }
@@ -66,9 +66,9 @@ rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath) {
 
     result = rs_patch_file(inputFile, deltaFile, outputFile, &stats);
 
-    rs_file_close(inputFile);
+    fclose(inputFile);
     // keep the delta file open
-    rs_file_close(outputFile);
+    fclose(outputFile);
 
     return result;
 }
