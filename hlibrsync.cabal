@@ -17,11 +17,36 @@ cabal-version:       >=1.8
 
 Hs-source-dirs: src
 
+-- This ensures that Cabal places these files in the release tarball,
+-- which is important if you plan to release
+Extra-source-files:
+    c_src/internal.h
+  , c_src/internal.c
+
 library
-  -- exposed-modules:
+
+  -- The C source files to compile, in that order
+  C-sources: c_src/internal.c
+
+  -- The location of the header files
+  Include-dirs: c_src ,  /opt/local/include
+  -- The header files to be included
+  Includes: internal.h
+  -- Header files to install
+  Install-includes: internal.h
+
+  -- Modules exported by the library.
+  exposed-modules: Network.LibRSync
+                 , Network.LibRSync.Internal
+
   -- other-modules:
-  build-depends:       base ==4.5.*
+  build-depends:
+      base == 4.5.*
+    , unix >= 2.5.1.1
+    , bytestring >= 0.9.2.1
 
   Build-tools: c2hs
 
   Hs-source-dirs: src
+
+--  Extra-libraries: librsync
