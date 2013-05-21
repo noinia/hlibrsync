@@ -1,5 +1,8 @@
 module Network.LibRSync where
 
+import Data.ByteString
+import System.IO
+
 --------------------------------------------------------------------------------
 
 type Signature = ByteString
