@@ -2,14 +2,14 @@
 #include <librsync.h>
 #include <stdio.h>
 
-rs_result genSig(char* filePath, int fd) {
+rs_result genSig(char* filePath, int sigFd) {
     FILE*      f;
     FILE*      sigFile;
     rs_stats_t stats;
     rs_result  result;
 
     f       = fopen(filePath, "rb");
-    sigFile = fdopen(fd, "wb");
+    sigFile = fdopen(sigFd, "wb");
 
     result = rs_sig_file(f, sigFile,
                          RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN, &stats);
