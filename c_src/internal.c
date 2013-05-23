@@ -14,8 +14,7 @@ rs_result genSig(char* filePath, int sigFd) {
     result = rs_sig_file(f, sigFile,
                          RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN, &stats);
     fclose(f);
-
-    // Note that we leave the sigfile open
+    fclose(sigFile);
 
     return result;
 }
@@ -45,7 +44,7 @@ rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
 
     rs_free_sumset(sumset);
 
-    // fclose(deltaFile);
+    fclose(deltaFile);
     fclose(f);
     fclose(sigFile);
 
@@ -67,7 +66,7 @@ rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath) {
     result = rs_patch_file(inputFile, deltaFile, outputFile, &stats);
 
     fclose(inputFile);
-    // keep the delta file open
+    fclose(deltaFile);
     fclose(outputFile);
 
     return result;

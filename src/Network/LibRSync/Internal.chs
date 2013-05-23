@@ -47,14 +47,15 @@ signature p = undefined
 
 
 
--- | Given a file, and a handle h, opened in binary Read-Write mode, indicating
+-- | Given a file, and a handle h, opened in binary Write mode, indicating
 -- where to write the signature to. Generate the signature. The signature is
--- written to the file corresponding to handle h. The handle is moved to the
--- beginning of the file. The function returns a Maybe String, indicating if
--- something goes wrong. If the result is Nothing, the operation succeeded.
+-- written to the file corresponding to handle h. The handle is closed as a result.
+-- The function returns a Maybe
+-- String, indicating if something goes wrong. If the result is Nothing, the
+-- operation succeeded.
 hSignature     :: FilePath -> Handle -> IO (Maybe String)
 hSignature p h = copyHandleToFd h >>= cGenSig p >>= \r -> case r of
-                    RsDone -> hSeek h AbsoluteSeek 0 >> return Nothing
+                    RsDone -> return Nothing
                     _      -> return $ Just "some error"
 
 {#fun unsafe genSig as cGenSig
@@ -101,7 +102,8 @@ cGenDelta sigHandle p deltaHandle = undefined
 cIntToEnum :: Enum a => CInt -> a
 cIntToEnum = toEnum . fromIntegral
 
-copyHandleToFd h = hDuplicate h >>= handleToFd
+copyHandleToFd = handleToFd
+-- copyHandleToFd h = hDuplicate h >>= handleToFd
 
 test = do
   h <- openBinaryFile "/tmp/signature" ReadWriteMode
