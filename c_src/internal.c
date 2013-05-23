@@ -5,14 +5,13 @@
 rs_result genSig(char* filePath, int sigFd) {
     FILE*      f;
     FILE*      sigFile;
-    rs_stats_t stats;
     rs_result  result;
 
     f       = fopen(filePath, "rb");
     sigFile = fdopen(sigFd, "wb");
 
-    result = rs_sig_file(f, sigFile,
-                         RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN, &stats);
+    result = rs_sig_file(f, sigFile, 0, 0, null);
+    // use default lengths, don't gather sats
     fclose(f);
     fclose(sigFile);
 
@@ -27,20 +26,19 @@ rs_result genDelta(int sigFd, char* filePath, int deltaFd) {
     FILE*           deltaFile;
     rs_result       result;
     rs_signature_t* sumset;
-    rs_stats_t      stats;
 
     sigFile   = fdopen(sigFd, "rb");
     f         = fopen(filePath, "rb");
     deltaFile = fdopen(deltaFd, "wb");
 
-    result = rs_loadsig_file(sigFile, &sumset, &stats);
+    result = rs_loadsig_file(sigFile, &sumset, null);
     if (result != RS_DONE)
        return result;
 
     if ((result = rs_build_hash_table(sumset)) != RS_DONE)
        return result;
 
-    result = rs_delta_file(sumset, f, deltaFile, &stats);
+    result = rs_delta_file(sumset, f, deltaFile, null);
 
     rs_free_sumset(sumset);
 
@@ -56,14 +54,13 @@ rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath) {
     FILE*      deltaFile;
     FILE*      inputFile;
     FILE*      outputFile;
-    rs_stats_t stats;
     rs_result  result;
 
     inputFile  = fopen(inputPath, "rb");
     deltaFile  = fdopen(deltaFd, "rb");
     outputFile = fopen(outputPath, "wb");
 
-    result = rs_patch_file(inputFile, deltaFile, outputFile, &stats);
+    result = rs_patch_file(inputFile, deltaFile, outputFile, null);
 
     fclose(inputFile);
     fclose(deltaFile);
