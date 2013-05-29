@@ -40,11 +40,26 @@ import Foreign.C.Types
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
+data RSyncSourceState
+
 type Signature = ByteString
 
-signature   :: FilePath -> IO (Either String Signature)
-signature p = undefined
 
+startSignature :: FilePath -> IO RSyncSourceState
+startSignature = undefined
+
+endSignature :: RSyncSourceState -> IO ()
+endSignature = undefined
+
+signatureSource :: RSyncSourceState -> Signature
+
+
+
+
+-- type Signature = ByteString
+
+-- signature   :: FilePath -> IO (Either String Signature)
+-- signature p = undefined
 
 
 -- | Given a file, and a handle h, opened in binary Write mode, indicating
@@ -104,9 +119,3 @@ cIntToEnum = toEnum . fromIntegral
 
 copyHandleToFd = handleToFd
 -- copyHandleToFd h = hDuplicate h >>= handleToFd
-
-test = do
-  h <- openBinaryFile "/tmp/signature" ReadWriteMode
-  r <- hSignature "/Users/frank/tmp/httpd-error.log" h
-  print r
-  hClose h

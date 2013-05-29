@@ -1,21 +1,43 @@
-module Network.LibRSync where
+module Main where
+-- module Network.LibRSync where
+
+import Control.Monad
+import Network.LibRSync.Internal
 
 import Data.ByteString
+
+import Data.Conduit
+
 import System.IO
+
+import Control.Applicative
+
+import qualified Data.ByteString as B
 
 --------------------------------------------------------------------------------
 
-type Signature = ByteString
+
+
 type Delta     = ByteString
 
-signature :: FilePath -> IO (Maybe Signature)
-signature inputFile = undefined
+signature      :: FilePath -> Source IO Signature
+signature path = bracketP (startSignature path) endSignature signatureSource
 
-hsignature :: Handle -> IO (Maybe Signature)
-hsignature h = undefined
+
+
+
+
 
 delta :: FilePath -> Signature -> IO (Maybe Delta)
 delta = undefined
 
 patch :: FilePath -> Delta -> IO ()
 patch = undefined
+
+
+main = do
+  s <- signature "/Users/frank/tmp/httpd-error.log"
+  print s
+  case s of
+    Left  _  -> return ()
+    Right s' -> writeSignature "/tmp/signature" s'

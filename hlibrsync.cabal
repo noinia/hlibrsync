@@ -44,6 +44,7 @@ library
       base == 4.5.*
     , unix >= 2.5.1.1
     , bytestring >= 0.9.2.1
+    , conduit >= 1.0.5
 
   Build-tools: c2hs
 
