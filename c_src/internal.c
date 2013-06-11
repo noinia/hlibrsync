@@ -52,37 +52,21 @@ rs_result signatureCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
     assert(output != NULL);
     assert(buf->next_out != NULL);
 
-    /* initialize the buf */
-    /* if (buf->next_out == NULL) { */
-    /*     assert(buf->avail_out == 0); */
 
-    /*     printf("reset buf\n"); */
-
-    /*     // allow us to directly write into the output stream */
-    /*     buf->next_out = output->buffer; */
-    /*     buf->avail_out = output->size; */
-    /*     output->inUse = 0; */
-
-    /*     return RS_DONE; */
-    /* } */
-
-    printf("sigCb called. Summary: ");
-    printf("output->inuse: %zu, output->size: %zu, buf->avail_out: %zu", output->inUse, output->size, buf->avail_out);
+    /* printf("sigCb called. Summary: "); */
+    /* printf("output->inuse: %zu, output->size: %zu, buf->avail_out: %zu", output->inUse, output->size, buf->avail_out); */
 
     output->inUse = output->size - buf->avail_out;
-    printf(", *NEW* inUse: %zu\n", output->inUse);
 
-    printOut(output);
-
-    printf("REMAINING IN: %zu\n",buf->avail_in);
+    /* printf(", *NEW* inUse: %zu\n", output->inUse); */
+    /* printOut(output); */
+    /* printf("REMAINING IN: %zu\n",buf->avail_in); */
 
 
     if (buf->avail_out == 0) {
-        printf("\nbuf full. Blocking\n");
+        /* printf("\nbuf full. Blocking\n"); */
         return RS_BLOCKED;
     }
-
-    /* printf("continguing, with available %zu\n",buf->avail_out); */
 
     return RS_DONE;
 }
@@ -113,26 +97,15 @@ rs_result startSignature(char *filePath, rsyncSourceState_t *state) {
 
     state->job = rs_sig_begin(RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN);
 
-    rs_result  res;
 
-    res =  rs_job_drive_as_is(state->job, state->buf,
-                         state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
-                         signatureCb, state
-                         );
-
-    printf("remaining in after getting a chunk: %zu\n", state->buf->avail_in);
-
-    return res;
+    return rs_job_drive_as_is(state->job, state->buf,
+                              state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
+                              signatureCb, state
+                              );
 
 }
 
 void endSignature(rsyncSourceState_t *state) {
-
-
-    printf ("Generated the signature:\n");
-    printOut(state->outputBuf);
-    printf("DONE printing\n\n\n");
-
     fclose(state->f);
     rs_job_free(state->job);
     free(state->buf);
@@ -142,6 +115,9 @@ void endSignature(rsyncSourceState_t *state) {
     free(state->outputBuf);
 }
 
+
+/* Get the next chunk of the signature.
+ */
 rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf) {
     // set up the output buffers
     assert(state != NULL);
@@ -151,14 +127,7 @@ rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf) {
     assert(state->outputBuf != NULL);
     assert(state->outputBuf->buffer != NULL);
 
-
-
-    printf("SigChunk. eof_in: %d avail_in: %zu\n, avail_out: %zu\n", state->buf->eof_in, state->buf->avail_in, state->buf->avail_out);
-
-
-    printf("INAVAIL: %zu\n",state->buf->avail_in);
-    printf("INEOF: %d\n",state->buf->eof_in );
-
+    /* printf("SigChunk. eof_in: %d avail_in: %zu\n, avail_out: %zu\n", state->buf->eof_in, state->buf->avail_in, state->buf->avail_out); */
 
 
     if (resetBuf) {
@@ -171,23 +140,14 @@ rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf) {
         state->outputBuf->inUse = 0;
         state->buf->avail_out = state->outputBuf->size;
         state->buf->next_out = state->outputBuf->buffer;
-        /* // zero the input buf */
-        /* state->buf->next_in = NULL; */
-        /* state->buf->avail_in = 0; */
-        printf("resetted buf\n");
+        /* printf("resetted buf\n"); */
     }
 
-    rs_result res;
+    return rs_job_drive_as_is(state->job, state->buf,
+                              state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
+                              signatureCb, state
+                              );
 
-    res = rs_job_drive_as_is(state->job, state->buf,
-                         state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
-                         signatureCb, state
-                         );
-
-    printf("INEOF after: %d\n",state->buf->eof_in );
-    printf("remaining in after getting a chunk: %zu\n", state->buf->avail_in);
-
-    return res;
 }
 
 
@@ -209,16 +169,20 @@ int main(int argc, char *argv[]) {
     printf("Chunk 1\n=====================\n===============\n");
     printOut(state->outputBuf);
 
-    for (i = 2; i < 6; ++i) {
+    i = 2;
+
+    while (result != RS_DONE) {
         assert(state != NULL);
         assert(state->job != NULL);
         assert(state->inBuf != NULL);
         assert(state->outputBuf != NULL);
         assert(state->outputBuf->buffer != NULL);
+
         printf ("Getting chunk %d\n==================\n==================\n",i);
         result = signatureChunk(state,true);
         printf("%s\n",rs_strerror(result));
         printOut(state->outputBuf);
+        i++;
     }
 
     endSignature(state);
