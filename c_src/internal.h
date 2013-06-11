@@ -23,11 +23,33 @@ typedef struct rsyncSourceState_t {
 
 size_t DEFAULT_BUFFERSIZE = 8;
 
-/* // we will produce the output in output. If output->buffer = NULL */
-/* // we will allocate it ourselves using DEFAULT_SIZE. */
-/* // Note: DONT keep pointers directly to output->buffer, because they */
-/* // may become invalid !!!! */
-/* rs_result genSig(char *filePath, inMemoryBuffer_t *output); */
+
+////////////////////////////////////////////////////////////////////////////////
+// Computing Signatures
+
+
+/**
+ * Initialize everything to compute a signature, and start computing it.
+ * stops when one of the buffers is full, or the signature is immediately done.
+ */
+rs_result startSignature(char *filePath, rsyncSourceState_t *state);
+
+/**
+ * Continue computing a signature. This assumes state is all set up to compute
+ * the next part of the signature.
+ *
+ * if resetBuf == True, this function will reset the the next_out pointers such that
+ * we start writing to the beginning of the output buffer again.
+ */
+rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf);
+
+/**
+ * Handles cleaning up everything after computing a signature.
+ */
+void endSignature(rsyncSourceState_t *state);
+
+
+
 
 
 /* // generate a delta, based on the implementation of rdiff */
