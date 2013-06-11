@@ -15,12 +15,13 @@ typedef struct inMemoryBuffer_t {
 typedef struct rsyncSourceState_t {
     FILE *f;
     rs_job_t *job;
+    rs_buffers_t *buf;
     rs_filebuf_t *inBuf;
     inMemoryBuffer_t *outputBuf;
 } rsyncSourceState_t;
 
 
-size_t DEFAULT_BUFFERSIZE = 6;
+size_t DEFAULT_BUFFERSIZE = 8;
 
 /* // we will produce the output in output. If output->buffer = NULL */
 /* // we will allocate it ourselves using DEFAULT_SIZE. */
