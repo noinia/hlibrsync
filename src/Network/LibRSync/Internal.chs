@@ -39,9 +39,7 @@ instance Storable CInMemoryBuffer where
                 <$> {#get inMemoryBuffer_t->buffer #} p
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->size #}   p)
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->inUse #}  p)
-   poke       = undefined
-
-
+    poke      = undefined
 
 getData                          :: CInMemoryBuffer -> IO ByteString
 getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,fromIntegral s)
@@ -63,18 +61,18 @@ data CRSyncSourceState = CRSyncSourceState { f :: Ptr CFile
                                            , job :: Ptr CJob
                                            , buf :: Ptr CBuffers
                                            , inBuf :: Ptr CRSFileBuf
-                                           , outputBuf :: CInMemoryBufferPtr
+                                           , outputBuf' :: CInMemoryBufferPtr
                                            }
+
+{#pointer *rsyncSourceState_t as CRSyncSourceStatePtr -> CRSyncSourceState #}
 
 instance Storable CRSyncSourceState where
     sizeOf    = const {#sizeof rsyncSourceState_t #}
     alignment = const 4
-    peek      = undefined
+               -- We can only access the output buffer and the return state
+    peek p    = CRSyncSourceState undefined undefined undefined undefined
+                <$> {#get rsyncSourceState_t->outputBuf #} p
     poke      = undefined
-
-
-{#pointer *rsyncSourceState_t as CRSyncSourceStatePtr -> CRSyncSourceState #}
-
 
 -- data BlockSig
 -- {#pointer *rs_block_sig_t as BlockSigPtr -> BlockSig #}
@@ -92,6 +90,9 @@ instance Storable CRSyncSourceState where
 -- | Generating Signatures
 
 type RSyncSourceState = CRSyncSourceStatePtr
+
+outputBuf   :: RSyncSourceState -> IO CInMemoryBuffer
+outputBuf p = (outputBuf' <$> peek p) >>= peek
 
 type Signature = ByteString
 
