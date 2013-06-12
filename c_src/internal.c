@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <librsync.h>
 #include <assert.h>
 
@@ -118,7 +117,7 @@ void endSignature(rsyncSourceState_t *state) {
 
 /* Get the next chunk of the signature.
  */
-rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf) {
+rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf) {
     // set up the output buffers
     assert(state != NULL);
     assert(state->job != NULL);
@@ -179,7 +178,7 @@ int main(int argc, char *argv[]) {
         assert(state->outputBuf->buffer != NULL);
 
         printf ("Getting chunk %d\n==================\n==================\n",i);
-        result = signatureChunk(state,true);
+        result = signatureChunk(state, 1/*true*/);
         printf("%s\n",rs_strerror(result));
         printOut(state->outputBuf);
         i++;

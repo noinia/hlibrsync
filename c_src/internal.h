@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <librsync.h>
 
 #include "buf.h"
@@ -41,7 +42,7 @@ rs_result startSignature(char *filePath, rsyncSourceState_t *state);
  * if resetBuf == True, this function will reset the the next_out pointers such that
  * we start writing to the beginning of the output buffer again.
  */
-rs_result signatureChunk(rsyncSourceState_t *state, bool resetBuf);
+rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf);
 
 /**
  * Handles cleaning up everything after computing a signature.
