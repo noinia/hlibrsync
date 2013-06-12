@@ -29,7 +29,7 @@ library
   C-sources: c_src/internal.c
 
   -- The location of the header files
-  Include-dirs: c_src
+  Include-dirs: c_src librsync
   -- The header files to be included
   Includes: internal.h
   -- Header files to install
