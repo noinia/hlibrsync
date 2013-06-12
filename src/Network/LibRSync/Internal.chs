@@ -1,7 +1,10 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE ForeignFunctionInterface,
+             EmptyDataDecls
+ #-}
 module Network.LibRSync.Internal where
 
 import Data.ByteString
+import Data.Conduit
 
 import System.IO
 import GHC.IO.Handle
@@ -9,6 +12,7 @@ import System.Posix.IO
 import System.Posix.Types
 
 import Foreign
+import Foreign.Marshal.Alloc
 -- import Foreign.Ptr
 import Foreign.C.String
 import Foreign.C.Types
@@ -16,20 +20,45 @@ import Foreign.C.Types
 
 #include "internal.h"
 
+-- #include "../../../c_src/internal.h"
+
 --------------------------------------------------------------------------------
 -- | The CTypes
 
--- data Target = Target { t :: CUShort , i :: CInt }
--- deriving (Show, Eq)
+data CInMemoryBuffer = CInMemoryBuffer (Ptr Char) CSize CSize
 
--- {#pointer *rs_target as TargetPtr -> Target #}
+{#pointer *inMemoryBuffer_t as CInMemoryBufferPtr -> CInMemoryBuffer #}
+
+-- data CRSFileBuf = CRSFileBuf (Ptr CFile) CSize
+
+-- {#pointer *rs_filebuf_t as CRSFileBufPtr -> CRSFileBuf #}
+
+data CJob
+data CBuffers
+data CRSFileBuf
+
+data CRSyncSourceState = CRSyncSourceState { f :: Ptr CFile
+                                           , job :: Ptr CJob
+                                           , buf :: Ptr CBuffers
+                                           , inBuf :: Ptr CRSFileBuf
+                                           , outputBuf :: CInMemoryBufferPtr
+                                           }
+
+instance Storable CRSyncSourceState where
+    sizeOf _  = {#sizeof rsyncSourceState_t #}
+    alignment = undefined
+    peek      = undefined
+    poke      = undefined
+
+
+{#pointer *rsyncSourceState_t as CRSyncSourceStatePtr -> CRSyncSourceState #}
+
 
 -- data BlockSig
 -- {#pointer *rs_block_sig_t as BlockSigPtr -> BlockSig #}
 
 
 -- type CSignature = Ptr CFile
-
 
 -- -- | The Signature type
 -- {#pointer *rs_signature_t as SignaturePtr -> CSignature #}
@@ -40,82 +69,64 @@ import Foreign.C.Types
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
-data RSyncSourceState
+type RSyncSourceState = CRSyncSourceStatePtr
 
 type Signature = ByteString
 
 
 startSignature :: FilePath -> IO RSyncSourceState
-startSignature = undefined
+startSignature path = do
+  state <- malloc :: IO (Ptr CRSyncSourceState)
+  rsres  <- cStartSignature path state
+  return state
+  -- TODO: check what to do with rsres
+  -- case rsres of
+  --   RsDone ->
 
 endSignature :: RSyncSourceState -> IO ()
-endSignature = undefined
+endSignature state = cEndSignature state >> free state
 
-signatureSource :: RSyncSourceState -> Signature
+signatureSource :: MonadResource m => RSyncSourceState -> Source m Signature
+signatureSource state = undefined -- do
+    -- (CInMemoryBuffer xs size inUse) <- {#get inMemorybuffer->outputBuf-> state
 
 
+
+
+
+
+
+{#fun unsafe startSignature as cStartSignature
+      { `String' -- FilePath
+      , id `CRSyncSourceStatePtr'
+      } -> `Result' cIntToEnum
+ #}
+
+{#fun unsafe signatureChunk as cSignatureChunk
+      { id `CRSyncSourceStatePtr'
+      , `Bool'
+      } -> `Result' cIntToEnum
+ #}
+
+{#fun unsafe endSignature as cEndSignature
+      { id `CRSyncSourceStatePtr'
+      } -> `()'
+ #}
 
 
 -- type Signature = ByteString
-
--- signature   :: FilePath -> IO (Either String Signature)
--- signature p = undefined
-
-
--- | Given a file, and a handle h, opened in binary Write mode, indicating
--- where to write the signature to. Generate the signature. The signature is
--- written to the file corresponding to handle h. The handle is closed as a result.
--- The function returns a Maybe
--- String, indicating if something goes wrong. If the result is Nothing, the
--- operation succeeded.
-hSignature     :: FilePath -> Handle -> IO (Maybe String)
-hSignature p h = copyHandleToFd h >>= cGenSig p >>= \r -> case r of
-                    RsDone -> return Nothing
-                    _      -> return $ Just "some error"
-
-{#fun unsafe genSig as cGenSig
-      { `String'
-      , fromIntegral `Fd'
-      } -> `Result' cIntToEnum
- #}
 
 
 --------------------------------------------------------------------------------
 -- | Delta
 
--- | Given a handle refering to the sginature, in (at least) binary Read mode,
--- positioned at the beginning of the file, a file path to a file, and a handle
--- in binary read write mode. Compute the delta, and write the result to the
--- file indicated by the second handle. The handle is repositioned to the
--- beginning of the file. The result of this function is a Maybe String
--- indicating any error messages. Nothing means the operation succeeded.
-cGenDelta :: Handle -> FilePath -> Handle -> IO (Maybe String)
-cGenDelta sigHandle p deltaHandle = undefined
-
-
-{#fun unsafe genDelta as genDelta'
-      { fromIntegral `Fd'
-      , `String'
-      , fromIntegral `Fd'
-      } -> `Result' cIntToEnum
-
- #}
 
 --------------------------------------------------------------------------------
 -- | Patch
 
-{#fun unsafe applyPatch as applyPatch'
-      { fromIntegral `Fd'
-      , `String'
-      , `String'
-      } -> `Result' cIntToEnum
- #}
 
 --------------------------------------------------------------------------------
 -- | Helper functions
 
 cIntToEnum :: Enum a => CInt -> a
 cIntToEnum = toEnum . fromIntegral
-
-copyHandleToFd = handleToFd
--- copyHandleToFd h = hDuplicate h >>= handleToFd
