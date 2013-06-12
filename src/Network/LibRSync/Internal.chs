@@ -3,6 +3,9 @@
  #-}
 module Network.LibRSync.Internal where
 
+import Control.Applicative((<$>),(<*>))
+import Control.Monad
+
 import Data.ByteString
 import Data.Conduit
 
@@ -25,13 +28,25 @@ import Foreign.C.Types
 --------------------------------------------------------------------------------
 -- | The CTypes
 
-data CInMemoryBuffer = CInMemoryBuffer (Ptr Char) CSize CSize
+data CInMemoryBuffer = CInMemoryBuffer (Ptr CChar) CSize CSize
 
 {#pointer *inMemoryBuffer_t as CInMemoryBufferPtr -> CInMemoryBuffer #}
 
+instance Storable CInMemoryBuffer where
+    sizeOf    = const {#sizeof inMemoryBuffer_t #}
+    alignment = const 4
+    peek p    = CInMemoryBuffer
+                <$> {#get inMemoryBuffer_t->buffer #} p
+                <*> liftM fromIntegral ({#get inMemoryBuffer_t->size #}   p)
+                <*> liftM fromIntegral ({#get inMemoryBuffer_t->inUse #}  p)
+   poke       = undefined
+
+
 
 getData                          :: CInMemoryBuffer -> IO ByteString
-getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,s)
+getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,fromIntegral s)
+
+
 
 
 
@@ -52,8 +67,8 @@ data CRSyncSourceState = CRSyncSourceState { f :: Ptr CFile
                                            }
 
 instance Storable CRSyncSourceState where
-    sizeOf _  = {#sizeof rsyncSourceState_t #}
-    alignment = undefined
+    sizeOf    = const {#sizeof rsyncSourceState_t #}
+    alignment = const 4
     peek      = undefined
     poke      = undefined
 
