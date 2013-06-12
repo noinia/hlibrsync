@@ -29,6 +29,13 @@ data CInMemoryBuffer = CInMemoryBuffer (Ptr Char) CSize CSize
 
 {#pointer *inMemoryBuffer_t as CInMemoryBufferPtr -> CInMemoryBuffer #}
 
+
+getData                          :: CInMemoryBuffer -> IO ByteString
+getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,s)
+
+
+
+
 -- data CRSFileBuf = CRSFileBuf (Ptr CFile) CSize
 
 -- {#pointer *rs_filebuf_t as CRSFileBufPtr -> CRSFileBuf #}
