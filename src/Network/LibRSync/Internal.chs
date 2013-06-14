@@ -4,7 +4,9 @@
 module Network.LibRSync.Internal where
 
 import Control.Applicative((<$>),(<*>))
+
 import Control.Monad
+import Control.Monad.IO.Class
 
 import Data.ByteString
 import Data.Conduit
@@ -82,6 +84,9 @@ type RSyncSourceState = CRSyncSourceStatePtr
 outputBuf   :: RSyncSourceState -> IO CInMemoryBuffer
 outputBuf p = (outputBuf' <$> peek p) >>= peek
 
+status   :: RSyncSourceState -> IO RsResult
+status p = status' <$> peek p
+
 type Signature = ByteString
 
 
@@ -94,16 +99,20 @@ initSignature path = do
   -- case rsres of
   --   RsDone ->
 
-finalizeSignature :: RSyncSourceState -> IO ()
+finalizeSignature       :: RSyncSourceState -> IO ()
 finalizeSignature state = cFinalizeSignature state >> free state
 
-signatureSource :: MonadResource m => RSyncSourceState -> Source m Signature
-signatureSource state = undefined -- TODO, st. like: outputBuf state >>= getData >>= yield
-
-
-
-
-
+signatureSource       :: MonadResource m => RSyncSourceState -> Source m Signature
+signatureSource state = liftIO (status state) >>= \s -> case s of
+                          RsBlocked -> do
+                                         liftIO $ cSignatureChunk state True
+                                         buf   <- liftIO $ outputBuf state
+                                         -- TODO: verify that we really execute this.
+                                         chunk <- liftIO $ getData buf
+                                         yield chunk
+                                         signatureSource state
+                          RsDone    -> return ()
+                          err       -> error "error!"
 
 
 {#fun unsafe initSignature as cInitSignature
