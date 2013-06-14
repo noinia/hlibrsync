@@ -21,7 +21,7 @@ import qualified Data.ByteString as B
 type Delta     = ByteString
 
 -- signature      :: FilePath -> Source IO Signature
-signature path = bracketP (startSignature path) endSignature signatureSource
+signature path = bracketP (initSignature path) finalizeSignature signatureSource
 
 
 

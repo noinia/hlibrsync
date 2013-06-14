@@ -19,6 +19,7 @@ typedef struct rsyncSourceState_t {
     rs_buffers_t *buf;
     rs_filebuf_t *inBuf;
     inMemoryBuffer_t *outputBuf;
+    rs_result status;
 } rsyncSourceState_t;
 
 
@@ -30,10 +31,9 @@ size_t DEFAULT_BUFFERSIZE = 8;
 
 
 /**
- * Initialize everything to compute a signature, and start computing it.
- * stops when one of the buffers is full, or the signature is immediately done.
+ * Initialize everything to compute a signature.
  */
-rs_result startSignature(char *filePath, rsyncSourceState_t *state);
+void initSignature(char *filePath, rsyncSourceState_t *state);
 
 /**
  * Continue computing a signature. This assumes state is all set up to compute
@@ -42,12 +42,12 @@ rs_result startSignature(char *filePath, rsyncSourceState_t *state);
  * if resetBuf == True, this function will reset the the next_out pointers such that
  * we start writing to the beginning of the output buffer again.
  */
-rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf);
+void signatureChunk(rsyncSourceState_t *state, int resetBuf);
 
 /**
  * Handles cleaning up everything after computing a signature.
  */
-void endSignature(rsyncSourceState_t *state);
+void finalizeSignature(rsyncSourceState_t *state);
 
 
 

@@ -71,7 +71,7 @@ rs_result signatureCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
 }
 
 
-rs_result startSignature(char *filePath, rsyncSourceState_t *state) {
+void initSignature(char *filePath, rsyncSourceState_t *state) {
 
     if (state->outputBuf == NULL) {
         state->outputBuf = malloc(sizeof(inMemoryBuffer_t));
@@ -89,22 +89,26 @@ rs_result startSignature(char *filePath, rsyncSourceState_t *state) {
     state->buf->avail_out = state->outputBuf->size;
 
     state->f = fopen(filePath, "rb");
-    if (!state->f)
-        return RS_IO_ERROR;
+    if (!state->f) {
+        state->status = RS_IO_ERROR;
+        return;
+    }
 
     state->inBuf  = rs_filebuf_new(state->f, rs_inbuflen);
 
     state->job = rs_sig_begin(RS_DEFAULT_BLOCK_LEN, RS_DEFAULT_STRONG_LEN);
 
+    state->status = RS_BLOCKED;
 
-    return rs_job_drive_as_is(state->job, state->buf,
-                              state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
-                              signatureCb, state
-                              );
+
+    /* return rs_job_drive_as_is(state->job, state->buf, */
+    /*                           state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf, */
+    /*                           signatureCb, state */
+    /*                           ); */
 
 }
 
-void endSignature(rsyncSourceState_t *state) {
+void finalizeSignature(rsyncSourceState_t *state) {
     fclose(state->f);
     rs_job_free(state->job);
     free(state->buf);
@@ -117,7 +121,7 @@ void endSignature(rsyncSourceState_t *state) {
 
 /* Get the next chunk of the signature.
  */
-rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf) {
+void signatureChunk(rsyncSourceState_t *state, int resetBuf) {
     // set up the output buffers
     assert(state != NULL);
     assert(state->job != NULL);
@@ -142,10 +146,12 @@ rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf) {
         /* printf("resetted buf\n"); */
     }
 
-    return rs_job_drive_as_is(state->job, state->buf,
-                              state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf,
-                              signatureCb, state
-                              );
+    state->status = rs_job_drive_as_is(state->job, state->buf,
+                                       state->inBuf ? rs_infilebuf_fill : NULL,
+                                       state->inBuf,
+                                       signatureCb,
+                                       state
+                                       );
 
 }
 
@@ -157,20 +163,19 @@ rs_result signatureChunk(rsyncSourceState_t *state, int resetBuf) {
 
 int main(int argc, char *argv[]) {
 
-    int i;
-    rs_result result;
+    int i = 1;
 
     rsyncSourceState_t *state = malloc(sizeof(rsyncSourceState_t));
 
     printf ("Starting up \n");
-    result= startSignature("/Users/frank/tmp/httpd-error.log", state);
+    initSignature("/Users/frank/tmp/httpd-error.log", state);
 
-    printf("Chunk 1\n=====================\n===============\n");
-    printOut(state->outputBuf);
+    /* printf("Chunk 1\n=====================\n===============\n"); */
+    /* printOut(state->outputBuf); */
 
-    i = 2;
+    /* i = 2; */
 
-    while (result != RS_DONE) {
+    while (state->status != RS_DONE) {
         assert(state != NULL);
         assert(state->job != NULL);
         assert(state->inBuf != NULL);
@@ -178,13 +183,13 @@ int main(int argc, char *argv[]) {
         assert(state->outputBuf->buffer != NULL);
 
         printf ("Getting chunk %d\n==================\n==================\n",i);
-        result = signatureChunk(state, 1/*true*/);
-        printf("%s\n",rs_strerror(result));
+        signatureChunk(state, 1/*true*/);
+        /* printf("%s\n",rs_strerror(result)); */
         printOut(state->outputBuf);
         i++;
     }
 
-    endSignature(state);
+    finalizeSignature(state);
     free(state);
 
     return 0;
