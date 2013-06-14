@@ -1,8 +1,13 @@
+#ifndef FILE_INTERNAL_SEEN
+#define FILE_INTERNAL_SEEN
+
 #include <stdio.h>
 #include <stdbool.h>
-#include <librsync.h>
+#include "librsync.h"
 
 #include "buf.h"
+
+
 
 
 // typedef rs_filebuf rs_filebuf_t;
@@ -22,8 +27,6 @@ typedef struct rsyncSourceState_t {
     rs_result status;
 } rsyncSourceState_t;
 
-
-size_t DEFAULT_BUFFERSIZE = 8;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,3 +60,5 @@ void finalizeSignature(rsyncSourceState_t *state);
 /* rs_result genDelta(int sigFd, char* filePath, int deltaFd); */
 
 /* rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath); */
+
+#endif
