@@ -2,6 +2,8 @@
 module Network.LibRSync where
 
 import Control.Monad
+import Control.Monad.IO.Class
+
 import Network.LibRSync.Internal
 
 import Data.ByteString
@@ -20,11 +22,23 @@ import qualified Data.ByteString as B
 
 type Delta     = ByteString
 
--- signature      :: FilePath -> Source IO Signature
+signature      :: MonadResource m => FilePath -> Source m Signature
 signature path = bracketP (initSignature path) finalizeSignature signatureSource
 
 
 
+
+
+-- writeFileSync :: FilePath -> Sink ByteString IO ()
+-- writeFileSync = sinkFile
+
+-- writeFileSync path  = do
+--   mbs <- await
+--   case mbs of
+--     Nothing -> liftIO $ print "EOF"
+--     Just bs -> do
+--                  liftIO $ B.putStr bs
+--                  writeFileSync path
 
 
 
