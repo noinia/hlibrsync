@@ -10,7 +10,7 @@
 #include "librsync.h"
 
 
-int main(int argc, char *argv[]) {
+void testSignature() {
 
     int i = 1;
 
@@ -40,6 +40,56 @@ int main(int argc, char *argv[]) {
 
     finalizeSignature(state);
     free(state);
+
+}
+
+void testPatch() {
+    int i = 1;
+
+    rsyncSinkState_t *state = malloc(sizeof(rsyncSinkState_t));
+
+    initPatch("/Users/frank/tmp/httpd-error_editted.log",
+              "/tmp/httpd-error_patched.log", state);
+
+    FILE* deltaF = fopen("/Users/frank/tmp/httpd-error_delta","rb");
+
+    while (state->status != RS_DONE) {
+        assert(state != NULL);
+        assert(state->job != NULL);
+        assert(state->deltaBuf != NULL);
+        assert(state->deltaBuf->buffer != NULL);
+        assert(state->outputBuf != NULL);
+
+
+        printf ("Getting Chunk %d\n===============\n==============\n",i);
+
+        if (!feof(deltaF)) {
+            printf ("Reading data\n");
+            state->deltaBuf->inUse = fread(state->deltaBuf->buffer,
+                                           1,
+                                           state->deltaBuf->size,
+                                           deltaF);
+        }
+
+        printf ("Patching\n");
+        patchChunk(state);
+
+        i++;
+    }
+
+    fclose(deltaF);
+
+    finalizePatch(state);
+
+    free(state);
+}
+
+
+
+
+int main(int argc, char *argv[]) {
+
+    testPatch();
 
     return 0;
 }

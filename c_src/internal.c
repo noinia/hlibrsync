@@ -7,8 +7,9 @@
 
 size_t RS_DEFAULT_BUFFERSIZE = 8;
 
-// -----------------------------------------------------------------------------
-// Debugging functions
+/******************************************************************************
+ *                        Debugging functions
+ *****************************************************************************/
 
 void toFile(char* path, char *str, size_t len) {
     FILE *f = fopen(path,"wb");
@@ -38,8 +39,9 @@ void printOut(inMemoryBuffer_t *output) {
     printf ("--------------------\n");
 }
 
-// -----------------------------------------------------------------------------
-// The actual functions
+/******************************************************************************
+ *                        Computing Signatures
+ *****************************************************************************/
 
 rs_result signatureCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
     rsyncSourceState_t *state = (rsyncSourceState_t*) opaque;
@@ -100,12 +102,6 @@ void initSignature(char *filePath, rsyncSourceState_t *state) {
 
     state->status = RS_BLOCKED;
 
-
-    /* return rs_job_drive_as_is(state->job, state->buf, */
-    /*                           state->inBuf  ? rs_infilebuf_fill : NULL, state->inBuf, */
-    /*                           signatureCb, state */
-    /*                           ); */
-
 }
 
 void finalizeSignature(rsyncSourceState_t *state) {
@@ -153,4 +149,79 @@ void signatureChunk(rsyncSourceState_t *state, int resetBuf) {
                                        state
                                        );
 
+}
+
+
+/******************************************************************************
+ *                        Computing Deltas
+ *****************************************************************************/
+
+
+
+/******************************************************************************
+ *                        Applying Patches
+ *****************************************************************************/
+
+void initPatch(char *inFilePath, char* outFilePath, rsyncSinkState_t *state) {
+
+    printf ("Woei :D\n");
+
+    state->buf = malloc(sizeof(rs_buffers_t));
+
+    if (state->deltaBuf == NULL) {
+        state->deltaBuf = malloc(sizeof(inMemoryBuffer_t));
+        state->deltaBuf->buffer = malloc(RS_DEFAULT_BUFFERSIZE);
+        state->deltaBuf->size = RS_DEFAULT_BUFFERSIZE;
+        state->deltaBuf->inUse = 0;
+    }
+
+    state->inF = fopen(inFilePath, "rb");
+    state->outF = fopen(outFilePath, "wb");
+
+
+
+    if ( !state->inF || !state->outF) {
+        state->status = RS_IO_ERROR;
+        return;
+    }
+
+
+    state->outputBuf = rs_filebuf_new(state->outF, rs_outbuflen);
+
+    state->job = rs_patch_begin(rs_file_copy_cb, state->inF);
+
+    state->status = RS_BLOCKED;
+
+}
+
+void patchChunk(rsyncSinkState_t *state) {
+
+    state->buf->next_in  = state->deltaBuf->buffer;
+    state->buf->avail_in = state->deltaBuf->inUse;
+    state->buf->eof_in   = state->deltaEOF;
+
+    printOut(state->deltaBuf);
+
+    // we already set up state->buf->next_in and state->buf->avail_in here
+    // so there is no need for an in-callback
+    state->status = rs_job_drive_as_is(state->job, state->buf,
+                                       NULL, NULL,
+                                       rs_outfilebuf_drain, state->outputBuf);
+
+    printf ("state: %d\n",state->status);
+}
+
+void finalizePatch(rsyncSinkState_t *state) {
+
+    rs_job_free(state->job);
+
+    fclose(state->outF);
+    fclose(state->inF);
+
+    if (state->outputBuf)
+        rs_filebuf_free(state->outputBuf);
+
+    free(state->deltaBuf);
+
+    free(state->buf);
 }
