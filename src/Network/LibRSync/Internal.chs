@@ -56,53 +56,55 @@ data CJob
 data CBuffers
 data CRSFileBuf
 
-data CRSyncSourceState = CRSyncSourceState { f'         :: Ptr CFile
-                                           , job'       :: Ptr CJob
-                                           , buf'       :: Ptr CBuffers
-                                           , inBuf'     :: Ptr CRSFileBuf
-                                           , outputBuf' :: CInMemoryBufferPtr
-                                           , status'    :: RsResult
-                                           }
-
-{#pointer *rsyncSourceState_t as CRSyncSourceStatePtr -> CRSyncSourceState #}
-
-instance Storable CRSyncSourceState where
-    sizeOf    = const {#sizeof rsyncSourceState_t #}
-    alignment = const 4
-               -- We can only access the output buffer and the return state
-    peek p    = CRSyncSourceState undefined undefined undefined undefined
-                <$> {#get rsyncSourceState_t->outputBuf #} p
-                <*> liftM cIntToEnum ({#get rsyncSourceState_t->status #} p)
-    poke      = undefined
-
-
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
-type RSyncSourceState = CRSyncSourceStatePtr
 
-outputBuf   :: RSyncSourceState -> IO CInMemoryBuffer
+
+data CRSyncSignatureState = CRSyncSignatureState { f'         :: Ptr CFile
+                                                 , job'       :: Ptr CJob
+                                                 , buf'       :: Ptr CBuffers
+                                                 , inBuf'     :: Ptr CRSFileBuf
+                                                 , outputBuf' :: CInMemoryBufferPtr
+                                                 , status'    :: RsResult
+                                                 }
+
+{#pointer *rsyncSignatureState_t as CRSyncSignatureStatePtr -> CRSyncSignatureState #}
+
+instance Storable CRSyncSignatureState where
+    sizeOf    = const {#sizeof rsyncSignatureState_t #}
+    alignment = const 4
+               -- We can only access the output buffer and the return state
+    peek p    = CRSyncSignatureState undefined undefined undefined undefined
+                <$> {#get rsyncSignatureState_t->outputBuf #} p
+                <*> liftM cIntToEnum ({#get rsyncSignatureState_t->status #} p)
+    poke      = undefined
+
+
+type RSyncSignatureState = CRSyncSignatureStatePtr
+
+outputBuf   :: RSyncSignatureState -> IO CInMemoryBuffer
 outputBuf p = (outputBuf' <$> peek p) >>= peek
 
-status   :: RSyncSourceState -> IO RsResult
+status   :: RSyncSignatureState -> IO RsResult
 status p = status' <$> peek p
 
 type Signature = ByteString
 
 
-initSignature :: FilePath -> IO RSyncSourceState
+initSignature :: FilePath -> IO RSyncSignatureState
 initSignature path = do
-  state <- malloc :: IO (Ptr CRSyncSourceState)
+  state <- malloc :: IO (Ptr CRSyncSignatureState)
   rsres  <- cInitSignature path state
   return state
-  -- TODO: check what to do with rsres
+  -- TODO: check what to do with rsres: if RsError we should throw an error or so
   -- case rsres of
   --   RsDone ->
 
-finalizeSignature       :: RSyncSourceState -> IO ()
+finalizeSignature       :: RSyncSignatureState -> IO ()
 finalizeSignature state = cFinalizeSignature state >> free state
 
-signatureSource       :: MonadResource m => RSyncSourceState -> Source m Signature
+signatureSource       :: MonadResource m => RSyncSignatureState -> Source m Signature
 signatureSource state = liftIO (status state) >>= \s -> case s of
                           RsBlocked -> do
                                          liftIO $ cSignatureChunk state True
@@ -117,32 +119,62 @@ signatureSource state = liftIO (status state) >>= \s -> case s of
 
 {#fun unsafe initSignature as cInitSignature
       { `String' -- FilePath
-      , id `CRSyncSourceStatePtr'
+      , id `CRSyncSignatureStatePtr'
       } -> `()'
  #}
 
 {#fun unsafe signatureChunk as cSignatureChunk
-      { id `CRSyncSourceStatePtr'
+      { id `CRSyncSignatureStatePtr'
       , `Bool'
       } -> `()'
  #}
 
 {#fun unsafe finalizeSignature as cFinalizeSignature
-      { id `CRSyncSourceStatePtr'
+      { id `CRSyncSignatureStatePtr'
       } -> `()'
  #}
-
-
--- type Signature = ByteString
 
 
 --------------------------------------------------------------------------------
 -- | Delta
 
+type Delta = ByteString
+
 
 --------------------------------------------------------------------------------
 -- | Patch
 
+
+data CRSyncDeltaState = CRSyncDeltaState { inF'       :: Ptr CFile
+                                         , outF'      :: Ptr CFile
+                                         , job'       :: Ptr CJob
+                                         , buf'       :: Ptr CBuffers
+                                         , deltaBuf'  :: CInMemoryBufferPtr
+                                         , deltaEOF'  :: Bool
+                                         , outputBuf' :: Ptr CRSFileBuf
+                                         , status'    :: RsResult
+                                         }
+
+{#pointer *rsyncDeltaState_t as CRSyncDeltaStatePtr -> CRSyncDeltaState #}
+
+-- instance Storable CRSyncDeltaState where
+--     sizeOf    = const {#sizeof rsyncDeltaState_t #}
+--     alignment = const 4
+--                -- We can only access the output buffer and the return state
+--     peek p    = CRSyncDeltaState undefined undefined undefined undefined
+--                 <$> {#get rsyncDeltaState_t->outputBuf #} p
+--                 <*> liftM cIntToEnum ({#get rsyncDeltaState_t->status #} p)
+--     poke      = undefined
+
+
+initPatch                :: FilePath -> FilePath -> IO RSyncDeltaState
+initPatch inPath outPath = undefined
+
+finalizePatch       :: RSyncDeltaState -> IO ()
+finalizePatch state = undefined
+
+patchSink       :: MonadResource m => RsyncDeltaState -> Sink m Delta
+patchSink state = undefined
 
 --------------------------------------------------------------------------------
 -- | Helper functions
