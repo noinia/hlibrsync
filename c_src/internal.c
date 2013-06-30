@@ -44,7 +44,7 @@ void printOut(inMemoryBuffer_t *output) {
  *****************************************************************************/
 
 rs_result signatureCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
-    rsyncSourceState_t *state = (rsyncSourceState_t*) opaque;
+    rsyncSignatureState_t *state = (rsyncSignatureState_t*) opaque;
 
     assert(state != NULL);
 
@@ -73,7 +73,7 @@ rs_result signatureCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
 }
 
 
-void initSignature(char *filePath, rsyncSourceState_t *state) {
+void initSignature(char *filePath, rsyncSignatureState_t *state) {
 
     if (state->outputBuf == NULL) {
         state->outputBuf = malloc(sizeof(inMemoryBuffer_t));
@@ -104,7 +104,7 @@ void initSignature(char *filePath, rsyncSourceState_t *state) {
 
 }
 
-void finalizeSignature(rsyncSourceState_t *state) {
+void finalizeSignature(rsyncSignatureState_t *state) {
     fclose(state->f);
     rs_job_free(state->job);
     free(state->buf);
@@ -117,7 +117,7 @@ void finalizeSignature(rsyncSourceState_t *state) {
 
 /* Get the next chunk of the signature.
  */
-void signatureChunk(rsyncSourceState_t *state, int resetBuf) {
+void signatureChunk(rsyncSignatureState_t *state, int resetBuf) {
     // set up the output buffers
     assert(state != NULL);
     assert(state->job != NULL);
@@ -162,7 +162,7 @@ void signatureChunk(rsyncSourceState_t *state, int resetBuf) {
  *                        Applying Patches
  *****************************************************************************/
 
-void initPatch(char *inFilePath, char* outFilePath, rsyncSinkState_t *state) {
+void initPatch(char *inFilePath, char* outFilePath, rsyncDeltaState_t *state) {
 
     printf ("Woei :D\n");
 
@@ -194,7 +194,7 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncSinkState_t *state) {
 
 }
 
-void patchChunk(rsyncSinkState_t *state) {
+void patchChunk(rsyncDeltaState_t *state) {
 
     state->buf->next_in  = state->deltaBuf->buffer;
     state->buf->avail_in = state->deltaBuf->inUse;
@@ -211,7 +211,7 @@ void patchChunk(rsyncSinkState_t *state) {
     printf ("state: %d\n",state->status);
 }
 
-void finalizePatch(rsyncSinkState_t *state) {
+void finalizePatch(rsyncDeltaState_t *state) {
 
     rs_job_free(state->job);
 

@@ -18,14 +18,14 @@ typedef struct inMemoryBuffer_t {
     size_t inUse;
 } inMemoryBuffer_t;
 
-typedef struct rsyncSourceState_t {
+typedef struct rsyncSignatureState_t {
     FILE *f;
     rs_job_t *job;
     rs_buffers_t *buf;
     rs_filebuf_t *inBuf;
     inMemoryBuffer_t *outputBuf;
     rs_result status;
-} rsyncSourceState_t;
+} rsyncSignatureState_t;
 
 typedef struct rsyncSinkState_t {
     FILE *inF;
@@ -48,7 +48,7 @@ typedef struct rsyncSinkState_t {
 /**
  * Initialize everything to compute a signature.
  */
-void initSignature(char *filePath, rsyncSourceState_t *state);
+void initSignature(char *filePath, rsyncSignatureState_t *state);
 
 /**
  * Continue computing a signature. This assumes state is all set up to compute
@@ -57,12 +57,12 @@ void initSignature(char *filePath, rsyncSourceState_t *state);
  * if resetBuf == True, this function will reset the the next_out pointers such that
  * we start writing to the beginning of the output buffer again.
  */
-void signatureChunk(rsyncSourceState_t *state, int resetBuf);
+void signatureChunk(rsyncSignatureState_t *state, int resetBuf);
 
 /**
  * Handles cleaning up everything after computing a signature.
  */
-void finalizeSignature(rsyncSourceState_t *state);
+void finalizeSignature(rsyncSignatureState_t *state);
 
 
 /******************************************************************************
