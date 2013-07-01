@@ -162,7 +162,7 @@ void signatureChunk(rsyncSignatureState_t *state, int resetBuf) {
  *                        Applying Patches
  *****************************************************************************/
 
-void initPatch(char *inFilePath, char* outFilePath, rsyncDeltaState_t *state) {
+void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state) {
 
     printf ("Woei :D\n");
 
@@ -195,7 +195,7 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncDeltaState_t *state) {
 }
 
 rs_result patchCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
-    rsyncDeltaState_t *state = (rsyncDeltaState_t*) opaque;
+    rsyncPatchState_t *state = (rsyncPatchState_t*) opaque;
 
     assert(state != NULL);
 
@@ -209,12 +209,11 @@ rs_result patchCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
 }
 
 
-void patchChunk(rsyncDeltaState_t *state) {
+void patchChunk(rsyncPatchState_t *state) {
 
     state->buf->next_in  = state->deltaBuf->buffer;
     state->buf->avail_in = state->deltaBuf->inUse;
     state->buf->eof_in   = state->deltaEOF;
-    state->deltaRead = 0;
 
     state->status = rs_job_drive_as_is(state->job, state->buf,
                                        patchCb, state,
@@ -222,7 +221,7 @@ void patchChunk(rsyncDeltaState_t *state) {
 
 }
 
-void finalizePatch(rsyncDeltaState_t *state) {
+void finalizePatch(rsyncPatchState_t *state) {
 
     rs_job_free(state->job);
 
