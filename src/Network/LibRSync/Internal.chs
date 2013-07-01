@@ -145,35 +145,54 @@ type Delta = ByteString
 -- | Patch
 
 
-data CRSyncDeltaState = CRSyncDeltaState { inF'       :: Ptr CFile
+data CRSyncPatchState = CRSyncPatchState { inF'       :: Ptr CFile
                                          , outF'      :: Ptr CFile
-                                         , job'       :: Ptr CJob
-                                         , buf'       :: Ptr CBuffers
+                                         , djob'      :: Ptr CJob
+                                         , dbuf'      :: Ptr CBuffers
                                          , deltaBuf'  :: CInMemoryBufferPtr
                                          , deltaEOF'  :: Bool
-                                         , outputBuf' :: Ptr CRSFileBuf
-                                         , status'    :: RsResult
+                                         , doutputBuf':: Ptr CRSFileBuf
+                                         , dstatus'   :: RsResult
                                          }
 
-{#pointer *rsyncDeltaState_t as CRSyncDeltaStatePtr -> CRSyncDeltaState #}
+{#pointer *rsyncPatchState_t as CRSyncPatchStatePtr -> CRSyncPatchState #}
 
--- instance Storable CRSyncDeltaState where
---     sizeOf    = const {#sizeof rsyncDeltaState_t #}
+-- instance Storable CRSyncPatchState where
+--     sizeOf    = const {#sizeof rsyncPatchState_t #}
 --     alignment = const 4
 --                -- We can only access the output buffer and the return state
---     peek p    = CRSyncDeltaState undefined undefined undefined undefined
---                 <$> {#get rsyncDeltaState_t->outputBuf #} p
---                 <*> liftM cIntToEnum ({#get rsyncDeltaState_t->status #} p)
+--     peek p    = CRSyncPatchState undefined undefined undefined undefined
+--                 <$> {#get rsyncPatchState_t->outputBuf #} p
+--                 <*> liftM cIntToEnum ({#get rsyncPatchState_t->status #} p)
 --     poke      = undefined
 
 
-initPatch                :: FilePath -> FilePath -> IO RSyncDeltaState
+{#fun unsafe initPatch as cInitPatch
+      { `String' -- FilePath to the input file
+      , `String' -- FilePath to the output file
+      , id `CRSyncPatchStatePtr'
+      } -> `()'
+ #}
+
+{#fun unsafe patchChunk as cPatchChunk
+      { id `CRSyncPatchStatePtr'
+      } -> `()'
+ #}
+
+{#fun unsafe finalizePatch as cFinalizePatch
+      { id `CRSyncPatchStatePtr'
+      } -> `()'
+ #}
+
+type RSyncPatchState = CRSyncPatchStatePtr
+
+initPatch                :: FilePath -> FilePath -> IO RSyncPatchState
 initPatch inPath outPath = undefined
 
-finalizePatch       :: RSyncDeltaState -> IO ()
+finalizePatch       :: RSyncPatchState -> IO ()
 finalizePatch state = undefined
 
-patchSink       :: MonadResource m => RsyncDeltaState -> Sink m Delta
+patchSink       :: MonadResource m => RSyncPatchState -> Sink Delta m ()
 patchSink state = undefined
 
 --------------------------------------------------------------------------------

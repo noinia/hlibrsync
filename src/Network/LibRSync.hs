@@ -24,5 +24,5 @@ signature path = bracketP (initSignature path) finalizeSignature signatureSource
 delta :: FilePath -> Signature -> IO (Maybe Delta)
 delta = undefined
 
-patch :: MonadResource m => FilePath -> FilePath -> Sink m Delta
+patch :: MonadResource m => FilePath -> FilePath -> Sink Delta m ()
 patch inPath outPath = bracketP (initPatch inPath outPath) finalizePatch patchSink
