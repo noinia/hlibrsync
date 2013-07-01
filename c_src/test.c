@@ -14,7 +14,7 @@ void testSignature() {
 
     int i = 1;
 
-    rsyncSourceState_t *state = malloc(sizeof(rsyncSourceState_t));
+    rsyncSignatureState_t *state = malloc(sizeof(rsyncSignatureState_t));
 
     printf ("Starting up \n");
     initSignature("/Users/frank/tmp/httpd-error.log", state);
@@ -46,7 +46,7 @@ void testSignature() {
 void testPatch() {
     int i = 1;
 
-    rsyncSinkState_t *state = malloc(sizeof(rsyncSinkState_t));
+    rsyncDeltaState_t *state = malloc(sizeof(rsyncDeltaState_t));
 
     initPatch("/Users/frank/tmp/httpd-error_editted.log",
               "/tmp/httpd-error_patched.log", state);
@@ -69,10 +69,13 @@ void testPatch() {
                                            1,
                                            state->deltaBuf->size,
                                            deltaF);
+        } else {
+            state->deltaEOF = 1;
         }
 
         printf ("Patching\n");
         patchChunk(state);
+        assert(state->buf->avail_in == 0);
 
         i++;
     }

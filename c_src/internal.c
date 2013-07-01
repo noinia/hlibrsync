@@ -194,21 +194,32 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncDeltaState_t *state) {
 
 }
 
+rs_result patchCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
+    rsyncDeltaState_t *state = (rsyncDeltaState_t*) opaque;
+
+    assert(state != NULL);
+
+    // we already set up state->buf->next_in and state->buf->avail_in here
+    // so we only need to make sure we stop if there is no remaining input
+
+    if (state->buf->avail_in == 0)
+        return RS_BLOCKED;
+    else
+        return RS_DONE;
+}
+
+
 void patchChunk(rsyncDeltaState_t *state) {
 
     state->buf->next_in  = state->deltaBuf->buffer;
     state->buf->avail_in = state->deltaBuf->inUse;
     state->buf->eof_in   = state->deltaEOF;
+    state->deltaRead = 0;
 
-    printOut(state->deltaBuf);
-
-    // we already set up state->buf->next_in and state->buf->avail_in here
-    // so there is no need for an in-callback
     state->status = rs_job_drive_as_is(state->job, state->buf,
-                                       NULL, NULL,
+                                       patchCb, state,
                                        rs_outfilebuf_drain, state->outputBuf);
 
-    printf ("state: %d\n",state->status);
 }
 
 void finalizePatch(rsyncDeltaState_t *state) {
