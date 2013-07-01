@@ -17,7 +17,6 @@ import System.Posix.IO
 import System.Posix.Types
 
 import Foreign
-import Foreign.Marshal.Alloc
 -- import Foreign.Ptr
 import Foreign.C.String
 import Foreign.C.Types
@@ -33,8 +32,7 @@ import Foreign.C.Types
 -- | The results type
 {#enum rs_result as RsResult {underscoreToCase} deriving (Eq, Show)#}
 
-
-
+-- | The data buffer we use to communicate data between Haskell and C
 data CInMemoryBuffer = CInMemoryBuffer (Ptr CChar) CSize CSize
 
 {#pointer *inMemoryBuffer_t as CInMemoryBufferPtr -> CInMemoryBuffer #}
@@ -44,22 +42,29 @@ instance Storable CInMemoryBuffer where
     alignment = const 4
     peek p    = CInMemoryBuffer
                 <$> {#get inMemoryBuffer_t->buffer #} p
-                <*> liftM fromIntegral ({#get inMemoryBuffer_t->size #}   p)
+                <*> liftM fromIntegral ({#get inMemoryBuffer_t->size  #}  p)
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->inUse #}  p)
-    poke      = undefined
+    poke p (CInMemoryBuffer xs _ l) = setData' p (xs,fromIntegral l)
+
+-- TODO, We should not do the set->buffer but really just a memcopy
+setData'            :: CInMemoryBufferPtr -> CStringLen -> IO ()
+setData' buf (xs,l) = do
+                        {#set inMemoryBuffer_t->buffer #} buf   xs
+                        {#set inMemoryBuffer_t->inUse  #} buf $ fromIntegral l
 
 getData                          :: CInMemoryBuffer -> IO ByteString
 getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,fromIntegral s)
 
 
-data CJob
-data CBuffers
-data CRSFileBuf
+setData     :: CInMemoryBufferPtr -> ByteString -> IO ()
+setData p b = useAsCStringLen b (setData' p)
 
 --------------------------------------------------------------------------------
 -- | Generating Signatures
 
-
+data CJob
+data CBuffers
+data CRSFileBuf
 
 data CRSyncSignatureState = CRSyncSignatureState { f'         :: Ptr CFile
                                                  , job'       :: Ptr CJob
@@ -81,41 +86,16 @@ instance Storable CRSyncSignatureState where
     poke      = undefined
 
 
+type Signature = ByteString
+
 type RSyncSignatureState = CRSyncSignatureStatePtr
+
 
 outputBuf   :: RSyncSignatureState -> IO CInMemoryBuffer
 outputBuf p = (outputBuf' <$> peek p) >>= peek
 
 status   :: RSyncSignatureState -> IO RsResult
 status p = status' <$> peek p
-
-type Signature = ByteString
-
-
-initSignature :: FilePath -> IO RSyncSignatureState
-initSignature path = do
-  state <- malloc :: IO (Ptr CRSyncSignatureState)
-  rsres  <- cInitSignature path state
-  return state
-  -- TODO: check what to do with rsres: if RsError we should throw an error or so
-  -- case rsres of
-  --   RsDone ->
-
-finalizeSignature       :: RSyncSignatureState -> IO ()
-finalizeSignature state = cFinalizeSignature state >> free state
-
-signatureSource       :: MonadResource m => RSyncSignatureState -> Source m Signature
-signatureSource state = liftIO (status state) >>= \s -> case s of
-                          RsBlocked -> do
-                                         liftIO $ cSignatureChunk state True
-                                         buf   <- liftIO $ outputBuf state
-                                         -- TODO: verify that we really execute this.
-                                         chunk <- liftIO $ getData buf
-                                         yield chunk
-                                         signatureSource state
-                          RsDone    -> return ()
-                          err       -> error "error!"
-
 
 {#fun unsafe initSignature as cInitSignature
       { `String' -- FilePath
@@ -157,15 +137,20 @@ data CRSyncPatchState = CRSyncPatchState { inF'       :: Ptr CFile
 
 {#pointer *rsyncPatchState_t as CRSyncPatchStatePtr -> CRSyncPatchState #}
 
--- instance Storable CRSyncPatchState where
---     sizeOf    = const {#sizeof rsyncPatchState_t #}
---     alignment = const 4
---                -- We can only access the output buffer and the return state
---     peek p    = CRSyncPatchState undefined undefined undefined undefined
---                 <$> {#get rsyncPatchState_t->outputBuf #} p
---                 <*> liftM cIntToEnum ({#get rsyncPatchState_t->status #} p)
---     poke      = undefined
+instance Storable CRSyncPatchState where
+    sizeOf    = const {#sizeof rsyncPatchState_t #}
+    alignment = const 4
+        -- We can read only the deltaBuf, deltaEof, and dstatus'
+    peek p    = (\db deof ds -> CRSyncPatchState undefined undefined
+                                                 undefined undefined
+                                                 db deof undefined ds)
+                <$>                   {#get rsyncPatchState_t->deltaBuf #} p
+                <*> liftM (> 0)      ({#get rsyncPatchState_t->deltaEOF #} p)
+                <*> liftM cIntToEnum ({#get rsyncPatchState_t->status   #} p)
 
+        -- We (can) set only the deltaEOF fields
+    poke p x  = let eof = fromIntegral $ if deltaEOF' x then 1 else 0 in
+                {#set rsyncPatchState_t->deltaEOF #} p eof
 
 {#fun unsafe initPatch as cInitPatch
       { `String' -- FilePath to the input file
@@ -186,14 +171,14 @@ data CRSyncPatchState = CRSyncPatchState { inF'       :: Ptr CFile
 
 type RSyncPatchState = CRSyncPatchStatePtr
 
-initPatch                :: FilePath -> FilePath -> IO RSyncPatchState
-initPatch inPath outPath = undefined
+deltaBuffer = deltaBuf' . peek
 
-finalizePatch       :: RSyncPatchState -> IO ()
-finalizePatch state = undefined
+setDelta             :: RSyncPatchState -> Delta -> IO ()
+setDelta state delta = do
+                         buf <- deltaBuffer state
+                         setData buf delta
 
-patchSink       :: MonadResource m => RSyncPatchState -> Sink Delta m ()
-patchSink state = undefined
+
 
 --------------------------------------------------------------------------------
 -- | Helper functions
