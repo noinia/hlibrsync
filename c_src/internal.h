@@ -27,6 +27,17 @@ typedef struct rsyncSignatureState_t {
     rs_result status;
 } rsyncSignatureState_t;
 
+typedef struct rsyncDeltaState_t {
+    FILE *inF;
+    rs_job_t *job;
+    rs_buffers_t *buf;
+    inMemoryBuffer_t *sigBuf;
+    int sigEOF;
+    inMemoryBuffer_t *outputBuf;
+    rs_result status;
+} rsyncDeltaState_t;
+
+
 typedef struct rsyncPatchState_t {
     FILE *inF;
     FILE *outF;
@@ -37,8 +48,6 @@ typedef struct rsyncPatchState_t {
     rs_filebuf_t *outputBuf;
     rs_result status;
 } rsyncPatchState_t;
-
-
 
 
 /******************************************************************************
@@ -69,6 +78,22 @@ void finalizeSignature(rsyncSignatureState_t *state);
  *                        Computing Deltas
  *****************************************************************************/
 
+/**
+ * Initialize everything to compute a delta from the file at inFilePath
+ */
+void initDelta(char *inFilePath, rsyncDeltaState_t *state);
+
+/**
+ * Continue computing the delta of the file. This assumes that the state is all
+ * set up to get the next chunk of the signature.
+ *
+ */
+void deltaChunk(rsyncDeltaState_t *state);
+
+/**
+ * Handles cleaning up everything after computing a delta
+ */
+void finalizeDelta(rsyncDeltaState_t *state);
 
 
 /******************************************************************************
@@ -87,17 +112,11 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state);
  */
 void patchChunk(rsyncPatchState_t *state);
 
+
 /**
- * Handles cleaning up everything after computing a signature.
+ * Handles cleaning up everything after applying a patch.
  */
 void finalizePatch(rsyncPatchState_t *state);
 
-
-
-
-/* // generate a delta, based on the implementation of rdiff */
-/* rs_result genDelta(int sigFd, char* filePath, int deltaFd); */
-
-/* rs_result applyPatch(int deltaFd, char* inputPath, char* outputPath); */
 
 #endif

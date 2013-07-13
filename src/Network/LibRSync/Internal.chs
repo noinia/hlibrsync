@@ -46,23 +46,22 @@ instance Storable CInMemoryBuffer where
                 <$> {#get inMemoryBuffer_t->buffer #} p
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->size  #}  p)
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->inUse #}  p)
-    poke p (CInMemoryBuffer xs _ l) = setData' p (xs,fromIntegral l)
-
-setData'            :: CInMemoryBufferPtr -> CStringLen -> IO ()
-setData' buf (xs,l) = do
-                        dest <- {#get inMemoryBuffer_t->buffer #} buf
-                        copyBytes dest xs l
-                        {#set inMemoryBuffer_t->inUse  #} buf $ fromIntegral l
+    poke p (CInMemoryBuffer xs sz l) =
+        do
+          {#set inMemoryBuffer_t->buffer #} p $ xs
+          {#set inMemoryBuffer_t->size   #} p $ fromIntegral sz
+          {#set inMemoryBuffer_t->inUse  #} p $ fromIntegral l
 
 getData                          :: CInMemoryBuffer -> IO ByteString
 getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,fromIntegral s)
 
 
-setData     :: CInMemoryBufferPtr -> ByteString -> IO ()
-setData p b = useAsCStringLen b (setData' p)
-              -- TODO: useAsCString creates a copy of the bytestring
-              -- which we then copy again to some other place in setData'
-              -- it would be nice if we could just do this in one go
+useAsCInMemoryBuffer     :: ByteString -> (CInMemoryBufferPtr -> IO a) -> IO a
+useAsCInMemoryBuffer b f = alloca $ \buf -> useAsCStringLen b $ \csl ->
+                             poke buf (fromCStringLen csl) >> f buf
+
+fromCStringLen        :: CStringLen -> CInMemoryBuffer
+fromCStringLen (xs,l) = let l' = fromIntegral l in CInMemoryBuffer xs l' l'
 
 --------------------------------------------------------------------------------
 -- | Generating Signatures
@@ -178,12 +177,14 @@ type RSyncPatchState = CRSyncPatchStatePtr
 deltaBuffer   :: CRSyncPatchStatePtr -> IO CInMemoryBufferPtr
 deltaBuffer p = deltaBuf' <$> peek p
 
-setDelta                 :: RSyncPatchState -> Delta -> Bool -> IO ()
-setDelta state delta eof = let eof' = fromIntegral $ if eof then 1 else 0 in
-                           do
-                             buf <- deltaBuffer state
-                             setData buf delta
-                             {#set rsyncPatchState_t->deltaEOF #} state eof'
+
+updateDeltaState                    :: RSyncPatchState
+                                    -> CInMemoryBufferPtr -> Bool -> IO ()
+updateDeltaState state deltaBuf eof = do
+        {#set rsyncPatchState_t->deltaBuf #} state deltaBuf
+        {#set rsyncPatchState_t->deltaEOF #} state eof'
+    where
+      eof' = fromIntegral $ if eof then 1 else 0
 
 
 --------------------------------------------------------------------------------

@@ -156,6 +156,25 @@ void signatureChunk(rsyncSignatureState_t *state, int resetBuf) {
  *                        Computing Deltas
  *****************************************************************************/
 
+void initDelta(char *inFilePath, rsyncDeltaState_t *state) {
+    //TODO
+}
+
+/**
+ * Continue computing the delta of the file. This assumes that the state is all
+ * set up to get the next chunk of the signature.
+ *
+ */
+void deltaChunk(rsyncDeltaState_t *state) {
+    //TODO
+}
+
+/**
+ * Handles cleaning up everything after computing a delta
+ */
+void finalizeDelta(rsyncDeltaState_t *state) {
+    //TODO
+}
 
 
 /******************************************************************************
@@ -164,16 +183,14 @@ void signatureChunk(rsyncSignatureState_t *state, int resetBuf) {
 
 void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state) {
 
-    printf ("Woei :D\n");
-
     state->buf = malloc(sizeof(rs_buffers_t));
 
-    if (state->deltaBuf == NULL) {
-        state->deltaBuf = malloc(sizeof(inMemoryBuffer_t));
-        state->deltaBuf->buffer = malloc(RS_DEFAULT_BUFFERSIZE);
-        state->deltaBuf->size = RS_DEFAULT_BUFFERSIZE;
-        state->deltaBuf->inUse = 0;
-    }
+    /* if (state->deltaBuf == NULL) { */
+    /*     state->deltaBuf = malloc(sizeof(inMemoryBuffer_t)); */
+    /*     state->deltaBuf->buffer = malloc(RS_DEFAULT_BUFFERSIZE); */
+    /*     state->deltaBuf->size = RS_DEFAULT_BUFFERSIZE; */
+    /*     state->deltaBuf->inUse = 0; */
+    /* } */
 
     state->inF = fopen(inFilePath, "rb");
     state->outF = fopen(outFilePath, "wb");
@@ -192,12 +209,15 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state) {
 
     state->status = RS_BLOCKED;
 
+    printf ("Init done :D\n");
+
 }
 
 rs_result patchCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
     rsyncPatchState_t *state = (rsyncPatchState_t*) opaque;
 
     assert(state != NULL);
+    assert(state->buf != NULL);
 
     // we already set up state->buf->next_in and state->buf->avail_in here
     // so we only need to make sure we stop if there is no remaining input
@@ -208,16 +228,21 @@ rs_result patchCb(rs_job_t *job, rs_buffers_t *buf, void *opaque) {
         return RS_DONE;
 }
 
-
 void patchChunk(rsyncPatchState_t *state) {
 
     state->buf->next_in  = state->deltaBuf->buffer;
     state->buf->avail_in = state->deltaBuf->inUse;
     state->buf->eof_in   = state->deltaEOF;
 
+    printf ("getting chunk\n");
+    printf ("eof: %d\n", state->buf->eof_in);
+    printf ("%zu\n",state->buf->avail_in);
+
     state->status = rs_job_drive_as_is(state->job, state->buf,
                                        patchCb, state,
                                        rs_outfilebuf_drain, state->outputBuf);
+
+    printf ("Done getting chunk\n");
 
 }
 
@@ -231,7 +256,7 @@ void finalizePatch(rsyncPatchState_t *state) {
     if (state->outputBuf)
         rs_filebuf_free(state->outputBuf);
 
-    free(state->deltaBuf);
+    /* free(state->deltaBuf); */
 
     free(state->buf);
 }

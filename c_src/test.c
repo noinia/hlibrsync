@@ -46,7 +46,7 @@ void testSignature() {
 void testPatch() {
     int i = 1;
 
-    rsyncDeltaState_t *state = malloc(sizeof(rsyncDeltaState_t));
+    rsyncPatchState_t *state = malloc(sizeof(rsyncPatchState_t));
 
     initPatch("/Users/frank/tmp/httpd-error_editted.log",
               "/tmp/httpd-error_patched.log", state);
@@ -75,7 +75,7 @@ void testPatch() {
 
         printf ("Patching\n");
         patchChunk(state);
-        assert(state->buf->avail_in == 0);
+
 
         i++;
     }

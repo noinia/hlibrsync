@@ -66,8 +66,9 @@ finalizePatch state = cFinalizePatch state >> free state
 
 patchSink       :: MonadResource m => RSyncPatchState -> Sink Delta m ()
 patchSink state = await >>= \mdelta -> case mdelta of
-                    Nothing    -> setDelta' state empty True  >> patchSink'
-                    Just delta -> setDelta' state delta False >> patchSink'
+                    Nothing    -> patchSink' empty True
+                    Just delta -> patchSink' delta False >> patchSink state
     where
-      patchSink'      = liftIO $ cPatchChunk state
-      setDelta' s d b = liftIO $ setDelta s d b
+      patchSink' delta eof = liftIO . useAsCInMemoryBuffer delta $ \deltaBuf ->
+                               updateDeltaState state deltaBuf eof >>
+                               cPatchChunk state
