@@ -2,7 +2,7 @@
 module Network.LibRSync where
 
 
-import Control.Applicative
+import Control.Applicative((<$>),(<*>),pure)
 import Control.Monad
 import Control.Monad.IO.Class
 
@@ -66,8 +66,8 @@ finalizePatch state = cFinalizePatch state >> free state
 
 patchSink       :: MonadResource m => RSyncPatchState -> Sink Delta m ()
 patchSink state = await >>= \mdelta -> case mdelta of
-                    Nothing    -> setDelta state empty True  >> patchSink'
-                    Just delta -> setDelta state delta False >> patchSink'
-    -- where
-    --   setEmpty = undefined
-    --   setDelta = setData
+                    Nothing    -> setDelta' state empty True  >> patchSink'
+                    Just delta -> setDelta' state delta False >> patchSink'
+    where
+      patchSink'      = liftIO $ cPatchChunk state
+      setDelta' s d b = liftIO $ setDelta s d b

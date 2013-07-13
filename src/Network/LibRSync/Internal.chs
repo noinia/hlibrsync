@@ -21,6 +21,8 @@ import Foreign
 import Foreign.C.String
 import Foreign.C.Types
 -- import Foreign.Storable
+import Foreign.Marshal.Utils(copyBytes)
+
 
 #include "internal.h"
 
@@ -46,10 +48,10 @@ instance Storable CInMemoryBuffer where
                 <*> liftM fromIntegral ({#get inMemoryBuffer_t->inUse #}  p)
     poke p (CInMemoryBuffer xs _ l) = setData' p (xs,fromIntegral l)
 
--- TODO, We should not do the set->buffer but really just a memcopy
 setData'            :: CInMemoryBufferPtr -> CStringLen -> IO ()
 setData' buf (xs,l) = do
-                        {#set inMemoryBuffer_t->buffer #} buf   xs
+                        dest <- {#get inMemoryBuffer_t->buffer #} buf
+                        copyBytes dest xs l
                         {#set inMemoryBuffer_t->inUse  #} buf $ fromIntegral l
 
 getData                          :: CInMemoryBuffer -> IO ByteString
@@ -58,6 +60,9 @@ getData (CInMemoryBuffer xs _ s) = packCStringLen (xs,fromIntegral s)
 
 setData     :: CInMemoryBufferPtr -> ByteString -> IO ()
 setData p b = useAsCStringLen b (setData' p)
+              -- TODO: useAsCString creates a copy of the bytestring
+              -- which we then copy again to some other place in setData'
+              -- it would be nice if we could just do this in one go
 
 --------------------------------------------------------------------------------
 -- | Generating Signatures
@@ -148,9 +153,7 @@ instance Storable CRSyncPatchState where
                 <*> liftM (> 0)      ({#get rsyncPatchState_t->deltaEOF #} p)
                 <*> liftM cIntToEnum ({#get rsyncPatchState_t->status   #} p)
 
-        -- We (can) set only the deltaEOF fields
-    poke p x  = let eof = fromIntegral $ if deltaEOF' x then 1 else 0 in
-                {#set rsyncPatchState_t->deltaEOF #} p eof
+    poke  = undefined
 
 {#fun unsafe initPatch as cInitPatch
       { `String' -- FilePath to the input file
@@ -171,13 +174,16 @@ instance Storable CRSyncPatchState where
 
 type RSyncPatchState = CRSyncPatchStatePtr
 
-deltaBuffer = deltaBuf' . peek
 
-setDelta             :: RSyncPatchState -> Delta -> IO ()
-setDelta state delta = do
-                         buf <- deltaBuffer state
-                         setData buf delta
+deltaBuffer   :: CRSyncPatchStatePtr -> IO CInMemoryBufferPtr
+deltaBuffer p = deltaBuf' <$> peek p
 
+setDelta                 :: RSyncPatchState -> Delta -> Bool -> IO ()
+setDelta state delta eof = let eof' = fromIntegral $ if eof then 1 else 0 in
+                           do
+                             buf <- deltaBuffer state
+                             setData buf delta
+                             {#set rsyncPatchState_t->deltaEOF #} state eof'
 
 
 --------------------------------------------------------------------------------
