@@ -12,10 +12,10 @@ author:              Frank Staals
 maintainer:          frank@fstaals.net
 -- copyright:
 category:            Network
-build-type:          Simple
+build-type:          Custom
 cabal-version:       >=1.8
 
-Hs-source-dirs: src
+--Hs-source-dirs: src
 
 -- This ensures that Cabal places these files in the release tarball,
 -- which is important if you plan to release
@@ -23,21 +23,31 @@ Extra-source-files:
     c_src/internal.h
   , c_src/internal.c
 
+Executable hlibrsync
+  Hs-source-dirs: src
+  Main-is: Main.hs
+
+  -- other-modules:
+  build-depends:
+      hlibrsync >= 0.1
+    , base == 4.5.*
+    , unix >= 2.5.1.1
+    , bytestring >= 0.9.2.1
+    , conduit >= 1.0.5
+    , transformers >= 0.3.0
+    , resourcet >= 0.4.7.1
+
+  Extra-lib-dirs: /Users/frank/workspace/hs-projects/hlibrsync/c_src
+
 library
 
-  -- The C source files to compile, in that order
-  C-sources: c_src/internal.c
-
-  -- The location of the header files
-  Include-dirs: c_src librsync
-  -- The header files to be included
-  Includes: internal.h
-  -- Header files to install
-  Install-includes: internal.h
+  Hs-source-dirs: src
 
   -- Modules exported by the library.
   exposed-modules: Network.LibRSync
                  , Network.LibRSync.Internal
+
+  Build-tools: c2hs
 
   -- other-modules:
   build-depends:
@@ -46,9 +56,48 @@ library
     , bytestring >= 0.9.2.1
     , conduit >= 1.0.5
     , transformers >= 0.3.0
+    , resourcet >= 0.4.7.1
 
-  Build-tools: c2hs
+  -- -- The C source files to compile, in that order
+  -- C-sources: c_src/internal.c
 
-  Hs-source-dirs: src
+  -- The location of the header files
+  Include-dirs: c_src librsync
 
---  Extra-libraries: librsync
+  -- The header files to be included
+  Includes: internal.h
+
+  -- Header files to install
+  Install-includes: internal.h
+
+  Extra-lib-dirs: /Users/frank/workspace/hs-projects/hlibrsync/c_src
+
+  Extra-Libraries: hlibrsync
+
+Test-Suite hlibrsync-tests
+  Type:              detailed-0.9
+  Hs-source-dirs:    tests
+  -- Main-is:           Properties.hs
+
+  Test-Module: Test.HLibRSync
+
+  build-depends:
+      base == 4.5.*
+    , unix >= 2.5.1.1
+    , bytestring >= 0.9.2.1
+    , conduit >= 1.0.5
+    , transformers >= 0.3.0
+    , HUnit >= 1.2.5
+    , Cabal >= 0.16
+    , cabal-test-hunit >= 0.2
+
+
+  -- Build-depends:     base >= 4.0 && < 5,
+  --                    hashable,
+  --                    test-framework >= 0.3.3 && < 0.5,
+  --                    test-framework-quickcheck2 >= 0.2.9 && < 0.3,
+  --                    QuickCheck >= 2.4.0.1,
+  --                    random == 1.0.*,
+  --                    text >= 0.11.0.5
+
+  -- Ghc-options:       -Wall -fno-warn-orphans
