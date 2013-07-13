@@ -46,10 +46,19 @@ void testSignature() {
 void testPatch() {
     int i = 1;
 
+    size_t RS_DEFAULT_BUFFERSIZE = 8;
+
     rsyncPatchState_t *state = malloc(sizeof(rsyncPatchState_t));
+
+    state->deltaBuf = malloc(sizeof(inMemoryBuffer_t));
+    state->deltaBuf->buffer = malloc(RS_DEFAULT_BUFFERSIZE);
+    state->deltaBuf->size = RS_DEFAULT_BUFFERSIZE;
+    state->deltaBuf->inUse = 0;
+
 
     initPatch("/Users/frank/tmp/httpd-error_editted.log",
               "/tmp/httpd-error_patched.log", state);
+
 
     FILE* deltaF = fopen("/Users/frank/tmp/httpd-error_delta","rb");
 
@@ -81,6 +90,8 @@ void testPatch() {
     }
 
     fclose(deltaF);
+
+    free(state->deltaBuf);
 
     finalizePatch(state);
 

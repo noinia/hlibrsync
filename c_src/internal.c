@@ -185,17 +185,8 @@ void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state) {
 
     state->buf = malloc(sizeof(rs_buffers_t));
 
-    /* if (state->deltaBuf == NULL) { */
-    /*     state->deltaBuf = malloc(sizeof(inMemoryBuffer_t)); */
-    /*     state->deltaBuf->buffer = malloc(RS_DEFAULT_BUFFERSIZE); */
-    /*     state->deltaBuf->size = RS_DEFAULT_BUFFERSIZE; */
-    /*     state->deltaBuf->inUse = 0; */
-    /* } */
-
     state->inF = fopen(inFilePath, "rb");
     state->outF = fopen(outFilePath, "wb");
-
-
 
     if ( !state->inF || !state->outF) {
         state->status = RS_IO_ERROR;
@@ -256,7 +247,6 @@ void finalizePatch(rsyncPatchState_t *state) {
     if (state->outputBuf)
         rs_filebuf_free(state->outputBuf);
 
-    /* free(state->deltaBuf); */
 
     free(state->buf);
 }

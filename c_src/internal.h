@@ -102,6 +102,9 @@ void finalizeDelta(rsyncDeltaState_t *state);
 
 /**
  * Initialize everything to apply a patch.
+
+ * Note that state->deltaBuf is *NOT* allocated by initPatch. The caller should
+ * do this herself!
  */
 void initPatch(char *inFilePath, char* outFilePath, rsyncPatchState_t *state);
 
